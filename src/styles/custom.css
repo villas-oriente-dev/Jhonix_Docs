@@ -1,0 +1,27 @@
+/* Acento azul marino */
+:root[data-theme="dark"] {
+    --sl-color-accent-low: #0d1f3c;
+    --sl-color-accent: #2563a8;
+    --sl-color-accent-high: #93c5fd;
+}
+
+:root[data-theme="light"] {
+    --sl-color-accent-low: #e8f0fb;
+    --sl-color-accent: #1e3a8a;
+    --sl-color-accent-high: #1e3a8a;
+}
+
+/* Tipografía más limpia y minimalista */
+:root {
+    --sl-font: "Inter", system-ui, sans-serif;
+}
+/* Ocultar navegación anterior/siguiente */
+.pagination-links {
+    display: none;
+}
+/* Logo temporal redondeado */
+.hero img {
+    height: 10em;
+    width: 10em;
+    border-radius: 50% !important;
+}

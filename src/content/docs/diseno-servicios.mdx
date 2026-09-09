@@ -1,0 +1,63 @@
+---
+title: Diseño y Servicios
+description: Filosofía de diseño y servicios utilizados en el desarrollo de las aplicaciones JHONIX Apps.
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Todas las aplicaciones y sitios desarrollados bajo JHONIX Apps comparten una base
+común de principios de diseño y un ecosistema de servicios consistente.
+
+---
+
+## Diseño
+
+El enfoque de diseño prioriza la claridad y la funcionalidad por encima de la
+decoración. Cada decisión visual tiene un propósito.
+
+### Principios
+
+- **Minimalismo** — interfaces limpias, sin elementos innecesarios. Solo lo que el usuario necesita ver.
+- **Colores neutrales** — paletas reducidas con un color de acento definido para el sitio. En Apps Moviles, uso de colores del dispositivo.
+- **Tipografía** — fuentes legibles con jerarquía clara.
+- **Iconografía** — exclusivamente [Material Icons](https://fonts.google.com/icons) de Google Fonts. Sin emojis.
+- **Animaciones** — sutiles y con el propósito de que la experiencia de usuario sea agradable.
+
+### En aplicaciones móviles
+
+Las apps para Android se desarrollan con **Jetpack Compose**, que implementa
+**Material Design 3** de forma nativa. Los componentes de M3 encajan directamente
+con la filosofía minimalista aplicada en todo el ecosistema JHONIX Apps.
+
+---
+
+## Servicios
+
+<CardGrid>
+  <Card title="Netlify" icon="netlify">
+    Hosting y despliegue continuo de sitios web y documentación.
+    Integración directa con GitHub para despliegues automáticos en cada push.
+  </Card>
+  <Card title="Firebase" icon="seti:firebase">
+    Base de datos en tiempo real, autenticación de usuarios, Remote Config y
+    distribución de aplicaciones móviles.
+  </Card>
+  <Card title="GitHub" icon="github">
+    Control de versiones, almacenamiento del código fuente y gestión de releases
+    oficiales de cada aplicación.
+  </Card>
+  <Card title="Astro y Astro Starlight" icon="rocket">
+    Desarrollo de sitios web y documentación. Esta página está construida con
+    Astro Starlight.
+  </Card>
+</CardGrid>
+
+---
+
+## Herramientas de desarrollo
+
+| Herramienta | Uso |
+|---|---|
+| Phoenix Code | Desarrollo web |
+| Android Studio | Desarrollo de apps Android |
+| Frontend puro | Base de sitios web (en transición gradual hacia Astro) |
