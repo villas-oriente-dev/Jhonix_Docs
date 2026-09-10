@@ -1,0 +1,156 @@
+---
+title: Plataforma Web
+description: Documentación completa de la plataforma web del sistema Informes de Predicación.
+---
+
+import { Card, CardGrid, Steps, Aside } from '@astrojs/starlight/components';
+
+Formulario web público donde los publicadores registran su informe mensual de predicación.
+Desarrollado en **frontend puro** (HTML, CSS, JavaScript), sin frameworks ni dependencias externas
+más allá de Firebase y Material Symbols.
+
+Está diseñada para ser reutilizable: cada instancia se conecta al proyecto de Firebase
+de una congregación específica cambiando únicamente la configuración.
+
+---
+
+## Tecnologías
+
+| Tecnología | Uso |
+|---|---|
+| HTML / CSS / JavaScript | Frontend puro, sin frameworks |
+| Firebase Authentication | Autenticación anónima del usuario |
+| Firebase Cloud Firestore | Almacenamiento de informes enviados |
+| Material Symbols Outlined | Iconografía (Google Fonts) |
+
+---
+
+## Estructura del formulario
+
+El formulario adapta sus campos según el **perfil** seleccionado por el usuario.
+
+### Campos siempre visibles
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| Nombre completo | Texto | Auto-capitalización al salir del campo. Requiere mínimo nombre y apellido |
+| Grupo | Select | Opciones configurables por congregación |
+| Mes | Select | Auto-seleccionado según período activo |
+| Perfil | Radio (chips) | Publicador / Precursor Auxiliar / Precursor Regular |
+| Cursos bíblicos | Número | Aplica a todos los perfiles |
+| Comentarios | Textarea | Opcional |
+
+### Campos condicionales por perfil
+
+| Perfil | Campo visible |
+|---|---|
+| Publicador | ¿Predicó este mes? (Sí / No) |
+| Precursor Auxiliar | Horas |
+| Precursor Regular | Horas |
+
+---
+
+## Funciones automáticas
+
+### Autoselección de mes
+
+Al cargar la página, el selector de mes se establece automáticamente según el período activo:
+
+- Si el día del mes es **≤ 20** → se selecciona el **mes anterior** (período de recolección activo).
+- Si el día del mes es **> 20** → se selecciona el **mes actual**.
+- Si el mes calculado es enero y corresponde retroceder, ajusta correctamente al diciembre del año anterior.
+
+```js
+function obtenerPeriodoActivo() {
+  const hoy = new Date();
+  let mesIndex = hoy.getDate() <= 20 ? hoy.getMonth() - 1 : hoy.getMonth();
+  let anio = hoy.getFullYear();
+  if (mesIndex < 0) { mesIndex = 11; anio -= 1; }
+  return { mes: MESES[mesIndex], mesIndex, anio };
+}
+```
+
+### Caché de nombre y grupo
+
+La plataforma usa `localStorage` para recordar el nombre y el grupo del usuario entre visitas.
+Las claves usadas tienen un **prefijo por congregación** (ver sección de configuración).
+
+| Clave localStorage | Contenido |
+|---|---|
+| `{prefijo}_nombre` | Nombre completo del publicador |
+| `{prefijo}_grupo` | Grupo seleccionado |
+| `{prefijo}_ultimoInforme` | Objeto JSON con `mes`, `anio` y `docId` del último envío |
+
+La clave de sessionStorage `{prefijo}_permitirReenvio` controla si se omite la detección de reenvío en la sesión actual.
+
+### Detección de reenvío
+
+Al cargar, la plataforma revisa si el usuario ya envió un informe para el período activo.
+Si detecta un envío previo (guardado en `localStorage`), muestra un modal con dos opciones:
+
+- **Editar** — abre la página de edición con el ID del documento.
+- **Continuar** — permite rellenar el formulario de nuevo (útil si se necesita corregir desde otro dispositivo o el caché es de otra persona).
+
+La detección se omite si `{prefijo}_permitirReenvio` está activo en `sessionStorage`.
+
+---
+
+## Año de servicio
+
+El campo `anioServicio` que se guarda en Firestore no es el año calendario. El **año de servicio**
+en las congregaciones de los Testigos de Jehová va de septiembre a agosto del año siguiente.
+
+La lógica aplicada:
+
+- Meses **septiembre a diciembre** → `anioServicio` = año calendario actual.
+- Meses **enero a agosto** → `anioServicio` = año calendario anterior.
+
+```js
+function obtenerAnioServicio(mesNombre, anioCalendario) {
+  const segundaMitad = ["Septiembre","Octubre","Noviembre","Diciembre"];
+  return segundaMitad.includes(mesNombre) ? anioCalendario : anioCalendario - 1;
+}
+```
+
+**Ejemplo:** Un informe enviado en marzo de 2026 tendrá `anioServicio: 2025`.
+
+---
+
+## Estructura del documento en Firestore
+
+Cada informe se guarda como un documento en la colección `informes`. Este es el esquema completo:
+
+```json
+{
+  "nombre":       "Juan Pérez",
+  "grupo":        "Grupo 1",
+  "mes":          "Agosto",
+  "perfil":       "Publicador",
+  "predico":      "Sí",
+  "horas":        null,
+  "cursos":       2,
+  "comentarios":  "Texto libre o vacío",
+  "anio":         2026,
+  "anioServicio": 2025
+}
+```
+
+<Aside type="note">
+El campo `predico` solo tiene valor cuando el perfil es **Publicador**.
+El campo `horas` solo tiene valor cuando el perfil es **Precursor Auxiliar** o **Precursor Regular**.
+Si `cursos` no se ingresa o no es un número válido, se guarda como `0`.
+</Aside>
+
+---
+
+## Código fuente
+
+El proyecto no incluye datos sensibles en su estructura base. Para reutilizarlo, se recomienda
+mantener un **repositorio limpio en GitHub** con las configuraciones de Firebase vacías
+(o usando variables de entorno si se migra a un framework), listo para clonar y configurar
+por congregación.
+
+<Aside type="tip">
+Si en el futuro se migra a Astro u otro framework, la lógica de negocio (período activo,
+año de servicio, detección de reenvío) puede extraerse tal cual a archivos `.js` independientes.
+</Aside>

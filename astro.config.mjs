@@ -34,7 +34,10 @@ export default defineConfig({
 						{
 							label: "Informes de Predicación",
 							items: [
-								{ label: "Documentación", link: "/apps/informes-de-predicacion/" },
+								{ label: "Descripción general", link: "/apps/informes-de-predicacion/" },
+								{ label: "Plataforma web", link: "/apps/informes-de-predicacion/web/" },
+								{ label: "Aplicación móvil", link: "/apps/informes-de-predicacion/app/" },
+								{ label: 'Configuración', link: '/apps/informes-de-predicacion/configuracion/' },
 								{ label: "Política de Privacidad", link: "/apps/informes-de-predicacion/privacidad/" }
 							]
 						},

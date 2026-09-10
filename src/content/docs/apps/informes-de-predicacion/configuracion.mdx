@@ -1,0 +1,177 @@
+---
+title: Configuración
+description: Guía para configurar el sistema Informes de Predicación para una nueva congregación.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Guía completa para levantar el sistema desde cero para una nueva congregación.
+El sistema tiene tres partes independientes que comparten el mismo proyecto de Firebase:
+la plataforma web, la aplicación móvil y la base de datos.
+
+---
+
+## Firebase y Firestore
+
+1. **Crear el proyecto en Firebase**
+
+   Entra a [firebase.google.com](https://firebase.google.com), crea un nuevo proyecto
+   y asígnale un nombre que identifique a la congregación.
+
+2. **Habilitar Firestore**
+
+   En el panel de Firebase, ve a **Firestore Database → Crear base de datos**.
+   Selecciona el modo de producción. La región recomendada es `us-central1`.
+
+3. **Habilitar Authentication**
+
+   Ve a **Authentication → Método de inicio de sesión** y habilita:
+   - **Anónimo** — para el acceso desde la plataforma web.
+   - **Correo electrónico / Contraseña** — para el acceso desde la app móvil.
+
+4. **Aplicar las reglas de Firestore**
+
+   En **Firestore → Reglas**, aplica lo siguiente:
+
+```js
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /informes/{docId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+5. **Restringir el uso de la API key en Google Cloud**
+
+   Esta es la capa de seguridad principal. En [console.cloud.google.com](https://console.cloud.google.com),
+   selecciona el proyecto y ve a **APIs y servicios → Credenciales**.
+
+   Edita la API key del proyecto y configura las restricciones:
+   - **Restricciones de aplicación → Sitios web HTTP** — agrega el dominio de la plataforma web (ej. `https://tu-sitio.netlify.app/*`).
+   - Para la app móvil, se gestiona desde Firebase con el SHA-1 y SHA-256 del keystore de la app (ver sección App más abajo).
+
+---
+
+## Plataforma web
+
+La web se distribuye como una plantilla lista para configurar.
+Repositorio: *(enlace pendiente)*
+
+1. **Descargar o clonar la plantilla**
+
+   Clona el repositorio y abre el proyecto en tu editor.
+
+2. **Configurar Firebase**
+
+   Localiza el objeto `firebaseConfig` y reemplázalo con los datos del nuevo proyecto.
+   Los datos se obtienen desde **Firebase → Configuración del proyecto → Tus apps**:
+
+```js
+const firebaseConfig = {
+  apiKey:            "...",
+  authDomain:        "...",
+  projectId:         "...",
+  storageBucket:     "...",
+  messagingSenderId: "...",
+  appId:             "..."
+};
+```
+
+3. **Actualizar el prefijo de localStorage**
+
+   Todas las claves de `localStorage` y `sessionStorage` usan un prefijo único por congregación
+   para evitar conflictos si el usuario accede a varias instancias desde el mismo navegador.
+
+   Busca todas las ocurrencias del prefijo actual (ej. `vdo_`) y reemplázalas por uno nuevo:
+
+```js
+// Antes
+localStorage.getItem("vdo_nombre");
+
+// Después
+localStorage.getItem("abc_nombre");
+```
+
+4. **Configurar los grupos**
+
+   Actualiza las opciones del selector de grupos con los grupos de la congregación:
+
+```html
+<option value="">Selecciona tu grupo</option>
+<option value="Grupo 1">Grupo 1</option>
+<option value="Grupo 2">Grupo 2</option>
+```
+
+5. **Actualizar el título y nombre de la congregación**
+
+   Actualiza el `<title>` del documento y el encabezado visible del formulario
+   con el nombre de la congregación.
+
+6. **Actualizar la URL de edición**
+
+   En la función `mostrarModalEdicion`, actualiza la URL de la página de edición:
+
+```js
+window.open(`https://TU-SITIO.netlify.app/edit/?doc=${docId}`);
+```
+
+7. **Publicar en Netlify**
+
+   Sube el proyecto a GitHub y conéctalo a Netlify.
+   Una vez publicado, agrega el dominio a las restricciones de la API key en Google Cloud.
+
+<Aside type="tip">
+Cada congregación debe tener su propio proyecto de Firebase independiente.
+No se recomienda compartir un mismo proyecto entre varias congregaciones.
+</Aside>
+
+### Páginas adicionales (opcionales)
+
+La plantilla incluye tres páginas. Los pasos anteriores cubren el formulario principal (`/`).
+Las otras dos requieren cambios adicionales:
+
+**`/answers/` — Visualización de informes**
+
+Esta página permite al encargado filtrar y ver los informes recibidos por grupo y mes,
+organizados por perfil. También genera un enlace directo para editar cada informe.
+
+Cambios necesarios además de los ya indicados:
+
+- Actualizar las opciones del selector de grupos (mismo listado que en el formulario principal).
+- Actualizar la URL base usada para generar los enlaces de edición. Busca esta línea:
+
+```js
+const url = `https://informe-de-predicacion.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
+```
+
+Y reemplaza el dominio por el del nuevo sitio:
+
+```js
+const url = `https://TU-SITIO.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
+```
+
+**`/edit/` — Editar informe**
+
+Esta página carga un informe existente desde Firestore usando el parámetro `?doc=` de la URL,
+permite corregir sus campos y guarda los cambios con `updateDoc`.
+
+Al cargar, el grupo y el mes quedan bloqueados (no editables) para evitar que un informe
+se mueva accidentalmente a otro período o grupo.
+
+Puede accederse de dos formas:
+- Desde `/answers/`, copiando el enlace de edición de una tarjeta.
+- Desde el formulario principal, cuando se detecta un reenvío y el publicador elige editar.
+
+Cambios necesarios además de los ya indicados:
+- Actualizar las opciones del selector de grupos.
+- Actualizar el prefijo de `localStorage` (misma clave `{prefijo}_grupo` y `{prefijo}_nombre`).
+- Actualizar la configuración de Firebase (Igual que en *Plataforma Web → Configurar Firebase*)
+
+---
+
+## Aplicación móvil
+
+*(Documentación pendiente. Se completará junto con la documentación de la app móvil.)*

@@ -1,6 +1,64 @@
 ---
 title: Informes de Predicación
-description: Documentación de la app Informes de Predicación.
+description: Visión general del sistema de gestión de informes mensuales de predicación.
 ---
 
-Contenido próximamente
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+Sistema de gestión de informes mensuales de predicación, compuesto por dos partes independientes que trabajan sobre la misma infraestructura de Firebase.
+
+Ha sido utilizado en más de una congregación, por lo que tanto la plataforma web como la app móvil están diseñadas para ser reutilizables en diferentes proyectos.
+
+---
+
+## Partes del sistema
+
+<CardGrid>
+  <Card title="Plataforma web" icon="document">
+    Formulario público donde los publicadores registran su informe mensual.
+    Desarrollada en frontend puro, sin frameworks. Reutilizable para cualquier congregación.
+
+    [Ver documentación →](/apps/informes-de-predicacion/web/)
+  </Card>
+  <Card title="Aplicación móvil" icon="laptop">
+    App Android para encargados de grupo. Visualiza los informes recibidos,
+    permite editarlos, ver resúmenes y generar un PDF. Se conecta dinámicamente
+    al proyecto de Firebase de cada congregación.
+
+    [Ver documentación →](/apps/informes-de-predicacion/app/)
+  </Card>
+</CardGrid>
+
+---
+
+## Infraestructura
+
+Ambas partes operan sobre **Google Firebase**:
+
+| Servicio | Uso |
+|---|---|
+| Firebase Authentication | Autenticación anónima: sin necesidad de credenciales |
+| Cloud Firestore | Almacenamiento y sincronización de informes |
+
+---
+
+## Estado
+
+**Completado.** El sistema está en uso activo. Ambas partes se mantienen y pueden adaptarse para nuevas congregaciones sin modificar el código fuente.
+
+---
+
+## Reutilizar
+
+El sistema esta diseñado para poder reutilizarse en cualquier congregación. Tanto la parte web con una plantilla lista para configurar y la app lista
+para cualquier congregación.
+
+[Ver Información de Configuración →](/apps/informes-de-predicacion/configuracion)
+
+---
+
+## Privacidad
+
+El sistema no vende ni comparte datos. Toda la información se usa exclusivamente para fines organizativos internos de cada congregación.
+
+[Ver Política de Privacidad →](/apps/informes-de-predicacion/privacidad/)
