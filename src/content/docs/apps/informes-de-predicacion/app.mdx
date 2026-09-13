@@ -1,6 +1,297 @@
 ---
-title: Informes de Predicación - App
-description: Documentación de la app Informes de Predicación.
+title: App Móvil — Informes de Predicación
+description: Aplicación Android para registrar, filtrar y exportar informes de predicación mensuales por grupo y perfil, con configuración dinámica por proyecto.
 ---
 
-Contenido próximamente.
+import { Card, CardGrid, Steps, Aside } from '@astrojs/starlight/components';
+
+Aplicación Android nativa para registrar y exportar informes de predicación mensuales. Diseñada para que múltiples congregaciones usen la misma APK conectándose a su propia base de datos Firebase mediante un código de proyecto. No requiere recompilación para cambiar de congregación.
+
+**Package:** `com.jhonixapps.informes` · **Min SDK:** 26 · **Target SDK:** 36 · **Versión actual:** 1.2.1
+
+---
+
+## Características principales
+
+<CardGrid>
+  <Card title="Configuración por código" icon="rocket">
+    El usuario ingresa un código corto para conectar la app al proyecto de su congregación. Alternativa: importar un archivo config.json. No se requiere ninguna compilación adicional.
+  </Card>
+  <Card title="Sincronización con Firestore" icon="star">
+    Los informes se almacenan en Firestore con autenticación anónima. Soporte offline habilitado: la primera carga posterior a la inicial es instantánea desde caché local.
+  </Card>
+  <Card title="Exportación a PDF" icon="document">
+    Genera PDFs con iText7 organizados por perfil, con fila de totales por sección. El nombre de archivo es determinista: regenerar la misma selección sobrescribe el archivo anterior.
+  </Card>
+  <Card title="Visor de PDF integrado" icon="laptop">
+    Visor nativo con PdfRenderer de Android. Soporte para pinch-to-zoom y desplazamiento. Cuando el zoom es 1x el documento está fijo; el pan solo se activa con zoom.
+  </Card>
+  <Card title="Temas claro, oscuro y automático" icon="setting">
+    El tema se selecciona en Ajustes mediante un segmented button. El modo automático sigue la configuración del sistema. Persiste entre sesiones con DataStore.
+  </Card>
+  <Card title="Control de versiones remoto" icon="information">
+    Firebase Remote Config compara la versión instalada con la publicada y muestra el estado en Ajustes. En producción consulta cada 30 días; en debug, cada 60 segundos.
+  </Card>
+</CardGrid>
+
+---
+
+## Tecnologías
+
+| Tecnología | Propósito |
+|---|---|
+| Kotlin + Jetpack Compose | UI nativa, 100% declarativa |
+| Material 3 | Sistema de diseño, incluyendo tema con paleta teal personalizada |
+| Firebase Firestore | Base de datos de informes por proyecto/congregación |
+| Firebase Remote Config | Verificación de actualizaciones de la app |
+| Firebase App Distribution | Canal de distribución de la app |
+| Firebase Auth (anónimo) | Autenticación sin registro de usuario |
+| iText7 (`kernel` + `layout`) | Generación de PDFs |
+| DataStore Preferences | Persistencia local de config, tema y caché de nombres |
+| Gson | Parseo del archivo config.json |
+| Baseline Profile | Optimización del arranque (pendiente de generar) |
+
+---
+
+## Arquitectura de Firebase
+
+La app mantiene dos instancias de Firebase simultáneas con roles distintos.
+
+| Instancia | Inicialización | Uso |
+|---|---|---|
+| DEFAULT | Automática por `google-services.json` al arrancar | Colección `proyectos` (buscar config por código) y Remote Config (versiones) |
+| NOMBRADA (`informes_instance`) | Manual en `InformesFirebase.inicializar()` con datos del `ProjectConfig` | Firestore de la congregación (informes) |
+
+<Aside type="caution">
+La instancia nombrada debe inicializarse antes de cualquier consulta a Firestore. Ocurre en `InformesApp.onCreate()` si ya existe un config guardado, o al finalizar el flujo de `SetupScreen`. Si Firebase no está inicializado al entrar al ViewModel, se muestra un error recuperable.
+</Aside>
+
+**Clases responsables:**
+- `AppFirebase` — accede a la instancia DEFAULT. Solo se usa en `SetupScreen` y `SettingsViewModel`.
+- `InformesFirebase` — gestiona la instancia nombrada. La usan `ReportsViewModel` y `SetupScreen`.
+
+### Firestore del proyecto base (instancia DEFAULT)
+
+Colección `proyectos`. Cada documento es la configuración de una congregación:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `codigo` | String | Código que ingresa el usuario (normalizado a mayúsculas) |
+| `projectName` | String | Nombre del proyecto, mostrado en la TopBar |
+| `collectionName` | String | Nombre de la colección de informes en el Firebase de la congregación |
+| `editBaseUrl` | String | URL base para el enlace de edición web (puede ser vacío) |
+| `groups` | Array\<String\> | Lista de grupos disponibles, ej. `["1","2","3"]` |
+| `firebaseConfig` | Map | Contiene `apiKey`, `applicationId`, `projectId` |
+
+### Reglas de seguridad recomendadas
+
+Para la colección `proyectos` en el proyecto base:
+
+```
+match /proyectos/{doc} {
+  allow read: if request.auth != null;
+  allow write: if false;
+}
+```
+
+Para la colección de informes en cada proyecto de congregación:
+
+```
+match /informes/{doc} {
+  allow read, write: if request.auth != null;
+}
+```
+
+En ambos proyectos debe estar habilitada la **autenticación anónima**.
+
+---
+
+## Estructura de pantallas
+
+```
+SetupScreen               ← Primera vez o al resetear. Tiene su propio Scaffold.
+    │
+    └── MainScaffold      ← Único Scaffold. Dueño de TopAppBar, NavigationBar y FAB.
+            ├── ReportsContent      (tab: Informes)
+            ├── ManageReportsContent (tab: Documentos)
+            └── SettingsContent     (tab: Ajustes)
+
+PdfViewerScreen           ← Pantalla completa. Tiene su propio Scaffold.
+```
+
+<Aside type="note">
+Las tres pantallas de tab son funciones de contenido puro, sin Scaffold propio. Esto evita la duplicación de window insets con `enableEdgeToEdge()`. Todos los elementos de navegación (TopAppBar, NavigationBar, FAB, diálogos) viven en `MainScaffold` dentro de `AppNavigation.kt`.
+</Aside>
+
+La animación entre pestañas es un deslizamiento horizontal direccional: si la pestaña destino tiene un índice mayor en la barra de navegación, el contenido entra desde la derecha; si es menor, desde la izquierda. Duración: 280ms.
+
+---
+
+## Flujo de configuración inicial
+
+### Por código
+
+<Steps>
+1. El usuario abre `SetupScreen` e ingresa el código del proyecto (hasta 12 caracteres, se normaliza a mayúsculas).
+2. La app hace login anónimo en Firebase DEFAULT.
+3. Se consulta la colección `proyectos` buscando el documento donde `codigo == valorIngresado`.
+4. El documento se mapea a un `ProjectConfig`, se validan los campos obligatorios y se guarda en DataStore.
+5. Se inicializa (o reinicializa) la instancia nombrada de Firebase con los datos del proyecto.
+6. La app navega a `MainScaffold`.
+</Steps>
+
+### Por archivo JSON
+
+<Steps>
+1. El usuario pulsa "Importar config.json" y selecciona un archivo desde el almacenamiento del dispositivo (SAF — no requiere permisos).
+2. El contenido se lee como texto y se parsea con Gson a `ProjectConfig`.
+3. Se validan los campos obligatorios: `projectName`, `apiKey`, `applicationId`, `projectId` y `groups`.
+4. Se guarda en DataStore e inicializa Firebase igual que el flujo por código.
+5. La app navega a `MainScaffold`.
+</Steps>
+
+---
+
+## Modelo de datos: Informe
+
+```kotlin
+@Immutable
+data class Informe(
+    val id: String,           // @DocumentId de Firestore
+    val nombre: String,
+    val grupo: String,        // valor crudo, ej. "1", "2", "Norte"
+    val mes: String,          // ej. "Abril"
+    val perfil: String,       // "Publicador" | "Precursor Auxiliar" | "Precursor Regular"
+    val predico: String,      // "Sí" | "No" — solo relevante para Publicadores
+    val horas: Any?,          // Double o Long (Firestore no garantiza el tipo)
+    val cursos: Any?,
+    val comentarios: String
+)
+```
+
+El campo `grupo` almacena el valor crudo de la lista `groups` del config. La función `displayGroup(group: String)` decide cómo mostrarlo: si es numérico, antepone "Grupo " (ej. "1" → "Grupo 1"); si es alfanumérico, lo muestra tal cual.
+
+---
+
+## Carga y filtrado de informes
+
+`ReportsViewModel` carga toda la colección una vez al iniciar y aplica el filtrado en memoria.
+
+### Patrón stale-while-revalidate
+
+1. Al iniciar, se intenta cargar de `Source.CACHE` (Firestore local). Si hay datos, la UI los muestra de inmediato sin spinner.
+2. Después, se hace la petición a `Source.SERVER`. Cuando responde, actualiza la UI en segundo plano.
+3. Si no hay conexión y hay caché, no se muestra error — los datos del caché permanecen visibles.
+4. Si no hay caché ni conexión, se muestra el error con opción de reintentar.
+
+### Filtrado
+
+Los filtros de Grupo y Mes viven en `ReportsViewModel` como `MutableStateFlow`. El resultado filtrado se deriva con `combine` y se expone como `StateFlow<List<Informe>>`. La función `generarPDF` lee directamente de `_allInformes` aplicando el filtro en el momento, sin depender del StateFlow derivado.
+
+---
+
+## Generación de PDF
+
+Los PDFs se generan con iText7 y se guardan en `getExternalFilesDir(DIRECTORY_DOCUMENTS)`.
+
+**Nombre de archivo:** `Informe_${mes}_${año}_${grupo}.pdf`  
+El nombre es determinista. Generar el mismo grupo y mes en el mismo año sobrescribe el archivo anterior.
+
+**Orden de secciones:** Publicador → Precursor Auxiliar → Precursor Regular
+
+Todas las secciones usan columnas de ancho uniforme (35 / 15 / 15 / 35 %):
+
+| Columna | Publicador | Precursores |
+|---|---|---|
+| 1 (35%) | Nombre | Nombre |
+| 2 (15%) | Predicó | Horas |
+| 3 (15%) | Estudios | Estudios |
+| 4 (35%) | Comentarios | Comentarios |
+
+Al final de cada sección se agrega una fila de totales con fondo del color primario de la app y texto blanco en negrita.
+
+Los PDFs generados se visualizan desde la tab Documentos. Desde ahí también se pueden compartir o eliminar. El visor interno usa `PdfRenderer` nativo de Android.
+
+---
+
+## Pantalla de Ajustes
+
+Dividida en tres secciones:
+
+### Proyecto
+- Nombre del proyecto activo y colección Firestore en uso.
+- Lista de grupos configurados como chips.
+- Botón de reset: limpia el config de DataStore y redirige a `SetupScreen`.
+
+### App
+- Selector de tema (Auto / Claro / Oscuro) — segmented button, persiste en DataStore.
+- Caché de nombres: muestra el conteo de nombres guardados y permite limpiarlos. Los nombres se guardan automáticamente al agregar un informe nuevo y se usan como sugerencias en el diálogo.
+
+### Acerca de
+- **Versión:** dinámica desde `BuildConfig.VERSION_NAME`. Requiere `buildConfig = true` en `build.gradle.kts`.
+- **Estado:** consulta Firebase Remote Config con clave `latest_version` (String). Compara semánticamente con la versión instalada. Muestra spinner mientras carga, "Actualizada" o "Actualización disponible". Si no hay conexión, muestra "—" sin error visible.
+- **Política de Privacidad:** enlace externo configurable.
+
+---
+
+## Configuración del proyecto Android
+
+### AndroidManifest.xml
+
+Requiere declarar el `Application` personalizado y el `FileProvider` para compartir PDFs:
+
+- `android:name=".InformesApp"` en el tag `<application>`
+- `android:enableOnBackInvokedCallback="true"` en `<application>`
+- Provider con `android:authorities="${applicationId}.fileprovider"` apuntando a `@xml/file_paths`
+
+### file_paths.xml
+
+```xml
+<paths>
+  <external-files-path name="documents" path="Documents/" />
+</paths>
+```
+
+### ProGuard
+
+El archivo de reglas debe incluir excepciones para iText7 y las clases de datos:
+
+```
+-keep class com.itextpdf.** { *; }
+-dontwarn com.itextpdf.**
+-keep class com.google.firebase.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.jhonixapps.informes.data.** { *; }
+```
+
+---
+
+## Estado actual
+
+**Versión:** 1.2.1
+
+Todas las funcionalidades del alcance original están implementadas y funcionando:
+- Configuración por código o archivo
+- Registro y sincronización de informes
+- Filtrado por grupo y mes
+- Modal de resumen estadístico
+- Exportación a PDF con totales
+- Visor de PDF con zoom
+- Gestión de documentos generados
+- Temas dinámicos
+- Verificación de actualizaciones
+
+**Pendiente para versiones futuras:**
+- Generación del Baseline Profile (requiere dispositivo conectado)
+- Múltiples proyectos activos simultáneamente (la sección en Ajustes está preparada)
+- Búsqueda por nombre dentro de la lista de informes
+- Notificación mensual recordando subir el informe
+
+---
+
+## Repositorio y distribución
+
+- **Código fuente:** Repositorio privado en GitHub [`villas-oriente-dev/InformesDePredicacionApp`](https://github.com/villas-oriente-dev/InformesDePredicacionApp)
+- **Distribución:** Firebase App Distribution
+- **Política de privacidad:** [Ver →](/apps/informes-de-predicacion/privacidad/)
