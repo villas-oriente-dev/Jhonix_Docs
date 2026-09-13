@@ -24,7 +24,7 @@ jobs:
 
       - name: Ejecutar traducción
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           ai-markdown-translator \
             -i ./src/content/docs \
