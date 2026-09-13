@@ -1,0 +1,65 @@
+name: Traducir ES → EN
+on:
+  push:
+    paths:
+      - 'src/content/docs/**/*.md'
+      - 'src/content/docs/**/*.mdx'
+      - '!src/content/docs/en/**'  # Evita retraducir lo ya traducido
+  workflow_dispatch:
+
+jobs:
+  traducir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar traductor
+        run: npm install -g ai-markdown-translator
+
+      - name: Ejecutar traducción
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          ai-markdown-translator \
+            -i ./src/content/docs \
+            -o ./src/content/docs/en \
+            --from es \
+            --to en \
+            --model gemini/gemini-2.0-flash \
+            --preserve-structure \
+            --code-blocks ignore \
+            --frontmatter-keep slug,date,tags,category,hero,image,title \
+            --prompt "
+            Eres traductor para documentación de Astro Starlight.
+
+            ⚙️ ESTRUCTURA:
+            - Archivos origen: ./src/content/docs/ (ESPAÑOL)
+            - Archivos destino: ./src/content/docs/en/ (INGLÉS)
+            - MANTÉN la jerarquía EXACTA de carpetas y subcarpetas
+            - Nombres de carpeta como 'apps', 'informes-de-predicacion', 'territorios', 'villas-oriente' SE MANTIENEN IGUAL
+
+            🚫 REGLAS OBLIGATORIAS:
+            1. NO traduzcas: nombres de proyectos, apps, rutas, slugs, códigos, comandos, variables
+            2. Nombres de archivos: se mantienen IGUALES (ej: index.mdx → index.mdx)
+            3. Frontmatter YAML: campos como slug, fechas, etiquetas, rutas → INTACTOS
+            4. Bloques de código entre ``` → SIN CAMBIOS
+            5. Enlaces: la parte de la ruta NO se traduce
+            6. SOLO traduce el texto visible del contenido
+
+            ✍️ Tono: claro, técnico pero natural, documentación profesional.
+            "
+
+      - name: Subir archivos traducidos
+        run: |
+          git config --local user.email "bot@tudominio.com"
+          git config --local user.name "Traductor Automático"
+          git add ./src/content/docs/en/
+          git commit -m "🤖 Traducción ES → EN" || echo "Sin cambios nuevos"
+          git push
+          
