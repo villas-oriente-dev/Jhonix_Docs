@@ -29,8 +29,7 @@ jobs:
           ai-markdown-translator \
             -i ./src/content/docs \
             -o ./src/content/docs/en \
-            --from es \
-            --to en \
+            --language en \
             --model gemini/gemini-2.0-flash \
             --preserve-structure \
             --code-blocks ignore \
