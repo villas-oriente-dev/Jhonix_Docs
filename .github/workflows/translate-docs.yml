@@ -1,0 +1,89 @@
+name: Translate Docs (ES → EN)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "src/content/docs/**"
+      - "!src/content/docs/en/**"
+
+jobs:
+  translate:
+    name: Auto-translate changed docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history needed for git diff
+
+      # ── 2. Detect changed / new files ───────────────────────────────────────
+      - name: Detect changed docs files
+        id: changed
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          echo "Comparing $BEFORE → $AFTER"
+
+          # First push ever: BEFORE is all zeros — list every eligible file
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "First push — scanning all docs files."
+            git ls-files 'src/content/docs/' \
+              | grep -v '^src/content/docs/en/' \
+              | grep -E '\.(md|mdx)$' \
+              > changed_files.txt
+          else
+            # Only files that were Added (A) or Modified (M) in this push
+            git diff --name-only --diff-filter=AM "$BEFORE" "$AFTER" \
+              -- 'src/content/docs/' \
+              | grep -v '^src/content/docs/en/' \
+              | grep -E '\.(md|mdx)$' \
+              > changed_files.txt || true
+          fi
+
+          echo "──── Files to translate ────"
+          cat changed_files.txt
+
+          COUNT=$(grep -c . changed_files.txt 2>/dev/null || echo 0)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      # ── 3. Python setup ─────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        if: steps.changed.outputs.count != '0'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.changed.outputs.count != '0'
+        run: pip install --quiet google-genai
+
+      # ── 4. Translate ─────────────────────────────────────────────────────────
+      - name: Translate files with Gemini
+        if: steps.changed.outputs.count != '0'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python .github/scripts/translate_docs.py changed_files.txt
+
+      # ── 5. Commit translations ───────────────────────────────────────────────
+      - name: Commit and push translations
+        if: steps.changed.outputs.count != '0'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add src/content/docs/en/
+
+          if git diff --staged --quiet; then
+            echo "Nothing new to commit."
+          else
+            git commit -m "chore(i18n): auto-translate docs [es → en] [skip ci]"
+            git push
+          fi
