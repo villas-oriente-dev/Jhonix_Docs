@@ -9,6 +9,17 @@ on:
       - "src/content/docs/**"
       - "!src/content/docs/en/**"
 
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Files to translate"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - changed
+
 jobs:
   translate:
     name: Auto-translate changed docs
@@ -29,18 +40,27 @@ jobs:
         run: |
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
+          SCOPE="${{ inputs.scope }}"   # "all" | "changed" | "" (on push)
 
-          echo "Comparing $BEFORE → $AFTER"
+          # Manual run with scope=all  →  translate every file
+          if [ "$SCOPE" = "all" ]; then
+            echo "Manual run — translating ALL docs files."
+            git ls-files 'src/content/docs/' \
+              | grep -v '^src/content/docs/en/' \
+              | grep -E '\.(md|mdx)$' \
+              > changed_files.txt
 
-          # First push ever: BEFORE is all zeros — list every eligible file
-          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+          # First push ever: BEFORE is all zeros  →  same as "all"
+          elif [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             echo "First push — scanning all docs files."
             git ls-files 'src/content/docs/' \
               | grep -v '^src/content/docs/en/' \
               | grep -E '\.(md|mdx)$' \
               > changed_files.txt
+
+          # Normal push (or manual with scope=changed)
           else
-            # Only files that were Added (A) or Modified (M) in this push
+            echo "Comparing $BEFORE → $AFTER"
             git diff --name-only --diff-filter=AM "$BEFORE" "$AFTER" \
               -- 'src/content/docs/' \
               | grep -v '^src/content/docs/en/' \
