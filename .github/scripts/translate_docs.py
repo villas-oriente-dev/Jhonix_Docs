@@ -20,7 +20,7 @@ from google import genai
 from google.genai import types
 
 # ── Settings ──────────────────────────────────────────────────────────────────
-GEMINI_MODEL   = "gemini-2.0-flash"
+GEMINI_MODEL   = "gemini-3.6-flash"
 SOURCE_ROOT    = "src/content/docs"
 DEST_ROOT      = "src/content/docs/en"
 DELAY_SECONDS  = 4          # pause between API calls (free tier: 15 req/min)
