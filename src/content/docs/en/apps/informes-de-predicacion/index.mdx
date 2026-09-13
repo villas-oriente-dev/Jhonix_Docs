@@ -1,0 +1,63 @@
+---
+title: Preaching Reports
+description: Overview of the monthly preaching report management system.
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+Monthly preaching report management system, composed of two independent parts working on the same Firebase infrastructure.
+
+It has been used in more than one congregation, so both the web platform and the mobile app are designed to be reusable across different projects.
+
+---
+
+## System parts
+
+<CardGrid>
+  <Card title="Web platform" icon="document">
+    Public form where publishers submit their monthly report.
+    Developed in pure frontend, without frameworks. Reusable for any congregation.
+
+    [View documentation →](/apps/informes-de-predicacion/web/)
+  </Card>
+  <Card title="Mobile application" icon="laptop">
+    Android app for group overseers. Displays received reports,
+    allows editing them, viewing summaries, and generating a PDF. Connects dynamically
+    to each congregation's Firebase project.
+
+    [View documentation →](/apps/informes-de-predicacion/app/)
+  </Card>
+</CardGrid>
+
+---
+
+## Infrastructure
+
+Both parts operate on **Google Firebase**:
+
+| Service | Usage |
+|---|---|
+| Firebase Authentication | Anonymous authentication: no credentials required |
+| Cloud Firestore | Report storage and synchronization |
+
+---
+
+## Status
+
+**Completed.** The system is in active use. Both parts are maintained and can be adapted for new congregations without modifying the source code.
+
+---
+
+## Reuse
+
+The system is designed to be reusable in any congregation. Both the web part with a ready-to-configure template and the app ready for any congregation.
+
+[View Configuration Information →](/apps/informes-de-predicacion/configuracion)
+
+---
+
+## Privacy
+
+The system does not sell or share data. All information is used exclusively for internal organizational purposes of each congregation.
+
+[View Privacy Policy →](/apps/informes-de-predicacion/privacidad/)

@@ -1,0 +1,177 @@
+---
+title: Configuration
+description: Guide for setting up the Preaching Reports system for a new congregation.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Complete guide to setting up the system from scratch for a new congregation.
+The system has three independent parts that share the same Firebase project:
+the web platform, the mobile application, and the database.
+
+---
+
+## Firebase and Firestore
+
+1. **Create the project in Firebase**
+
+   Go to [firebase.google.com](https://firebase.google.com), create a new project,
+   and assign it a name that identifies the congregation.
+
+2. **Enable Firestore**
+
+   In the Firebase panel, go to **Firestore Database → Create database**.
+   Select production mode. The recommended region is `us-central1`.
+
+3. **Enable Authentication**
+
+   Go to **Authentication → Sign-in method** and enable:
+   - **Anonymous** — for access from the web platform.
+   - **Email / Password** — for access from the mobile app.
+
+4. **Apply Firestore rules**
+
+   In **Firestore → Rules**, apply the following:
+
+```js
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /informes/{docId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+5. **Restrict API key usage in Google Cloud**
+
+   This is the primary security layer. In [console.cloud.google.com](https://console.cloud.google.com),
+   select the project and go to **APIs & Services → Credentials**.
+
+   Edit the project's API key and configure the restrictions:
+   - **Application restrictions → HTTP referrers** — add the web platform domain (e.g., `https://tu-sitio.netlify.app/*`).
+   - For the mobile app, this is managed within Firebase using the SHA-1 and SHA-256 of the app's keystore (see App section below).
+
+---
+
+## Web platform
+
+The web platform is distributed as a ready-to-configure template.
+Repository: *(link pending)*
+
+1. **Download or clone the template**
+
+   Clone the repository and open the project in your editor.
+
+2. **Configure Firebase**
+
+   Locate the `firebaseConfig` object and replace it with the data from the new project.
+   The data can be obtained from **Firebase → Project settings → Your apps**:
+
+```js
+const firebaseConfig = {
+  apiKey:            "...",
+  authDomain:        "...",
+  projectId:         "...",
+  storageBucket:     "...",
+  messagingSenderId: "...",
+  appId:             "..."
+};
+```
+
+3. **Update the localStorage prefix**
+
+   All `localStorage` and `sessionStorage` keys use a unique prefix per congregation
+   to prevent conflicts if a user accesses multiple instances from the same browser.
+
+   Search for all occurrences of the current prefix (e.g., `vdo_`) and replace them with a new one:
+
+```js
+// Antes
+localStorage.getItem("vdo_nombre");
+
+// Después
+localStorage.getItem("abc_nombre");
+```
+
+4. **Configure groups**
+
+   Update the group selector options with the congregation's groups:
+
+```html
+<option value="">Selecciona tu grupo</option>
+<option value="Grupo 1">Grupo 1</option>
+<option value="Grupo 2">Grupo 2</option>
+```
+
+5. **Update the congregation title and name**
+
+   Update the document's `<title>` and the visible header of the form
+   with the name of the congregation.
+
+6. **Update the edit URL**
+
+   In the `mostrarModalEdicion` function, update the edit page URL:
+
+```js
+window.open(`https://TU-SITIO.netlify.app/edit/?doc=${docId}`);
+```
+
+7. **Publish on Netlify**
+
+   Upload the project to GitHub and connect it to Netlify.
+   Once published, add the domain to the API key restrictions in Google Cloud.
+
+<Aside type="tip">
+Each congregation must have its own independent Firebase project.
+Sharing the same project among multiple congregations is not recommended.
+</Aside>
+
+### Additional pages (optional)
+
+The template includes three pages. The previous steps cover the main form (`/`).
+The other two require additional changes:
+
+**`/answers/` — Report visualization**
+
+This page allows the person in charge to filter and view received reports by group and month,
+organized by profile. It also generates a direct link to edit each report.
+
+Required changes in addition to those already indicated:
+
+- Update the group selector options (same list as in the main form).
+- Update the base URL used to generate the edit links. Look for this line:
+
+```js
+const url = `https://informe-de-predicacion.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
+```
+
+And replace the domain with the new site's domain:
+
+```js
+const url = `https://TU-SITIO.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
+```
+
+**`/edit/` — Edit report**
+
+This page loads an existing report from Firestore using the URL parameter `?doc=`,
+allows correcting its fields, and saves the changes with `updateDoc`.
+
+Upon loading, the group and month are locked (non-editable) to prevent a report
+from being accidentally moved to another period or group.
+
+It can be accessed in two ways:
+- From `/answers/`, by copying the edit link from a card.
+- From the main form, when a resubmission is detected and the publisher chooses to edit.
+
+Required changes in addition to those already indicated:
+- Update the group selector options.
+- Update the `localStorage` prefix (same `{prefijo}_grupo` and `{prefijo}_nombre` key).
+- Update the Firebase configuration (Same as in *Web platform → Configure Firebase*)
+
+---
+
+## Mobile application
+
+*(Documentation pending. Will be completed along with the mobile app documentation.)*

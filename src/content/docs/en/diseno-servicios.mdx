@@ -1,0 +1,63 @@
+---
+title: Design and Services
+description: Design philosophy and services used in the development of JHONIX Apps applications.
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+All applications and sites developed under JHONIX Apps share a common foundation
+of design principles and a consistent ecosystem of services.
+
+---
+
+## Design
+
+The design approach prioritizes clarity and functionality over decoration.
+Every visual decision has a purpose.
+
+### Principles
+
+- **Minimalism** — clean interfaces, without unnecessary elements. Only what the user needs to see.
+- **Neutral colors** — reduced palettes with a defined accent color for the site. In Mobile Apps, use of device colors.
+- **Typography** — readable fonts with a clear hierarchy.
+- **Iconography** — exclusively [Material Icons](https://fonts.google.com/icons) from Google Fonts. No emojis.
+- **Animations** — subtle and intended to make the user experience pleasant.
+
+### In mobile applications
+
+Android apps are developed with **Jetpack Compose**, which natively implements
+**Material Design 3**. M3 components fit directly with the minimalist philosophy
+applied across the JHONIX Apps ecosystem.
+
+---
+
+## Services
+
+<CardGrid>
+  <Card title="Netlify" icon="netlify">
+    Hosting and continuous deployment of websites and documentation.
+    Direct integration with GitHub for automatic deployments on every push.
+  </Card>
+  <Card title="Firebase" icon="seti:firebase">
+    Real-time database, user authentication, Remote Config, and mobile
+    application distribution.
+  </Card>
+  <Card title="GitHub" icon="github">
+    Version control, source code storage, and management of official releases
+    for each application.
+  </Card>
+  <Card title="Astro and Astro Starlight" icon="rocket">
+    Website development and documentation. This page is built with
+    Astro Starlight.
+  </Card>
+</CardGrid>
+
+---
+
+## Development tools
+
+| Tool | Usage |
+|---|---|
+| Phoenix Code | Web development |
+| Android Studio | Android app development |
+| Pure frontend | Website base (gradually transitioning to Astro) |

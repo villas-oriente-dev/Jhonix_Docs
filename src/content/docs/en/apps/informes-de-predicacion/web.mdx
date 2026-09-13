@@ -1,0 +1,156 @@
+---
+title: Web Platform — Field Service Reports
+description: Complete documentation for the web platform of the Field Service Reports system.
+---
+
+import { Card, CardGrid, Steps, Aside } from '@astrojs/starlight/components';
+
+Public web form where publishers submit their monthly field service report.
+Developed in **pure frontend** (HTML, CSS, JavaScript), without frameworks or external dependencies
+beyond Firebase and Material Symbols.
+
+It is designed to be reusable: each instance connects to the Firebase project
+of a specific congregation simply by changing the configuration.
+
+---
+
+## Technologies
+
+| Technology | Usage |
+|---|---|
+| HTML / CSS / JavaScript | Pure frontend, without frameworks |
+| Firebase Authentication | Anonymous user authentication |
+| Firebase Cloud Firestore | Storage for submitted reports |
+| Material Symbols Outlined | Iconography (Google Fonts) |
+
+---
+
+## Form Structure
+
+The form adapts its fields according to the **profile** selected by the user.
+
+### Always visible fields
+
+| Field | Type | Notes |
+|---|---|---|
+| Full name | Text | Auto-capitalization on field blur. Requires at least first and last name |
+| Group | Select | Configurable options per congregation |
+| Month | Select | Auto-selected based on active period |
+| Profile | Radio (chips) | Publisher / Auxiliary Pioneer / Regular Pioneer |
+| Bible studies | Number | Applies to all profiles |
+| Comments | Textarea | Optional |
+
+### Conditional fields by profile
+
+| Profile | Visible field |
+|---|---|
+| Publisher | Did you preach this month? (Yes / No) |
+| Auxiliary Pioneer | Hours |
+| Regular Pioneer | Hours |
+
+---
+
+## Automatic Functions
+
+### Month auto-selection
+
+Upon loading the page, the month selector is automatically set according to the active period:
+
+- If the day of the month is **≤ 20** → the **previous month** is selected (active collection period).
+- If the day of the month is **> 20** → the **current month** is selected.
+- If the calculated month is January and it needs to go back, it adjusts correctly to December of the previous year.
+
+```js
+function obtenerPeriodoActivo() {
+  const hoy = new Date();
+  let mesIndex = hoy.getDate() <= 20 ? hoy.getMonth() - 1 : hoy.getMonth();
+  let anio = hoy.getFullYear();
+  if (mesIndex < 0) { mesIndex = 11; anio -= 1; }
+  return { mes: MESES[mesIndex], mesIndex, anio };
+}
+```
+
+### Name and group caching
+
+The platform uses `localStorage` to remember the user's name and group between visits.
+The keys used have a **prefix per congregation** (see configuration section).
+
+| `localStorage` key | Content |
+|---|---|
+| `{prefijo}_nombre` | Publisher's full name |
+| `{prefijo}_grupo` | Selected group |
+| `{prefijo}_ultimoInforme` | JSON object with `mes`, `anio`, and `docId` of the last submission |
+
+The `sessionStorage` key `{prefijo}_permitirReenvio` controls whether resubmission detection is bypassed in the current session.
+
+### Resubmission detection
+
+Upon loading, the platform checks whether the user has already submitted a report for the active period.
+If it detects a previous submission (saved in `localStorage`), it displays a modal with two options:
+
+- **Edit** — opens the editing page with the document ID.
+- **Continue** — allows filling out the form again (useful if corrections are needed from another device or if the cache belongs to someone else).
+
+Detection is bypassed if `{prefijo}_permitirReenvio` is active in `sessionStorage`.
+
+---
+
+## Service year
+
+The `anioServicio` field saved in Firestore is not the calendar year. The **service year**
+in Jehovah's Witnesses congregations runs from September through August of the following year.
+
+The logic applied:
+
+- Months **September through December** → `anioServicio` = current calendar year.
+- Months **January through August** → `anioServicio` = previous calendar year.
+
+```js
+function obtenerAnioServicio(mesNombre, anioCalendario) {
+  const segundaMitad = ["Septiembre","Octubre","Noviembre","Diciembre"];
+  return segundaMitad.includes(mesNombre) ? anioCalendario : anioCalendario - 1;
+}
+```
+
+**Example:** A report submitted in March 2026 will have `anioServicio: 2025`.
+
+---
+
+## Document Structure in Firestore
+
+Each report is saved as a document in the `informes` collection. This is the complete schema:
+
+```json
+{
+  "nombre":       "Juan Pérez",
+  "grupo":        "Grupo 1",
+  "mes":          "Agosto",
+  "perfil":       "Publicador",
+  "predico":      "Sí",
+  "horas":        null,
+  "cursos":       2,
+  "comentarios":  "Texto libre o vacío",
+  "anio":         2026,
+  "anioServicio": 2025
+}
+```
+
+<Aside type="note">
+The `predico` field only has a value when the profile is **Publisher**.
+The `horas` field only has a value when the profile is **Auxiliary Pioneer** or **Regular Pioneer**.
+If `cursos` is not entered or is not a valid number, it is saved as `0`.
+</Aside>
+
+---
+
+## Source code
+
+The project does not include sensitive data in its base structure. To reuse it, it is recommended to
+maintain a **clean GitHub repository** with empty Firebase configurations
+(or using environment variables if migrating to a framework), ready to clone and configure
+per congregation.
+
+<Aside type="tip">
+If migrated to Astro or another framework in the future, the business logic (active period,
+service year, resubmission detection) can be extracted as-is into standalone `.js` files.
+</Aside>

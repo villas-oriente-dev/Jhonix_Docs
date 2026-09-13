@@ -1,0 +1,211 @@
+---
+title: Mobile App — Field Service Reports
+description: Android application to record, filter, and export monthly field service reports by group and profile, with dynamic configuration per project.
+---
+
+import { Card, CardGrid, Steps, Aside } from '@astrojs/starlight/components';
+
+Native Android application to record and export monthly field service reports. Designed for multiple congregations to use the same APK by connecting to their own Firebase database via a project code. Recompilation is not required to switch congregations.
+
+**Package:** `com.jhonixapps.informes` · **Min SDK:** 26 · **Target SDK:** 36 · **Current version:** 1.2.1
+
+---
+
+## Main features
+
+<CardGrid>
+  <Card title="Code configuration" icon="rocket">
+    The user enters a short code to connect the app to their congregation's project. Alternative: import a config.json file. No additional compilation required.
+  </Card>
+  <Card title="Firestore synchronization" icon="star">
+    Reports are stored in Firestore with anonymous authentication. Offline support enabled: initial load after the first one is instant from local cache.
+  </Card>
+  <Card title="PDF export" icon="document">
+    Generates PDFs with iText7 organized by profile, with a totals row per section. The file name is deterministic: regenerating the same selection overwrites the previous file.
+  </Card>
+  <Card title="Built-in PDF viewer" icon="laptop">
+    Native viewer with Android's PdfRenderer. Support for pinch-to-zoom and scrolling. When zoom is 1x, the document is fixed; pan is only activated with zoom.
+  </Card>
+  <Card title="Light, dark, and automatic themes" icon="setting">
+    The theme is selected in Settings via a segmented button. Automatic mode follows system settings. Persists across sessions with DataStore.
+  </Card>
+  <Card title="Remote version control" icon="information">
+    Firebase Remote Config compares the installed version with the published version and displays the status in Settings. In production it checks every 30 days; in debug, every 60 seconds.
+  </Card>
+</CardGrid>
+
+---
+
+## Technologies
+
+| Technology | Purpose |
+|---|---|
+| Kotlin + Jetpack Compose | Native UI, 100% declarative |
+| Material 3 | Design system, including theme with custom teal palette |
+| Firebase Firestore | Database of reports per project/congregation |
+| Firebase Remote Config | Checking app updates |
+| Firebase App Distribution | App distribution channel |
+| Firebase Auth (anonymous) | Authentication without user registration |
+| iText7 (`kernel` + `layout`) | PDF generation |
+| DataStore Preferences | Local persistence of config, theme, and name cache |
+| Gson | Parsing of the config.json file |
+| Baseline Profile | Startup optimization (pending generation) |
+
+---
+
+## Firebase architecture
+
+The app maintains two simultaneous Firebase instances with distinct roles.
+
+| Instance | Initialization | Usage |
+|---|---|---|
+| DEFAULT | Automatic via `google-services.json` on startup | `proyectos` collection (search config by code) and Remote Config (versions) |
+| NAMED (`informes_instance`) | Manual in `InformesFirebase.inicializar()` with `ProjectConfig` data | Congregation Firestore (reports) |
+
+<Aside type="caution">
+The named instance must be initialized before any query to Firestore. This occurs in `InformesApp.onCreate()` if a saved config already exists, or upon completing the `SetupScreen` flow. If Firebase is not initialized when entering the ViewModel, a recoverable error is displayed.
+</Aside>
+
+**Responsible classes:**
+- `AppFirebase` — accesses the DEFAULT instance. Only used in `SetupScreen` and `SettingsViewModel`.
+- `InformesFirebase` — manages the named instance. Used by `ReportsViewModel` and `SetupScreen`.
+
+### Base project Firestore (DEFAULT instance)
+
+`proyectos` collection. Each document is the configuration of a congregation:
+
+| Field | Type | Description |
+|---|---|---|
+| `codigo` | String | Code entered by the user (normalized to uppercase) |
+| `projectName` | String | Project name, displayed in the TopBar |
+| `collectionName` | String | Name of the reports collection in the congregation's Firebase |
+| `editBaseUrl` | String | Base URL for the web edit link (can be empty) |
+| `groups` | Array\<String\> | List of available groups, e.g. `["1","2","3"]` |
+| `firebaseConfig` | Map | Contains `apiKey`, `applicationId`, `projectId` |
+
+### Recommended security rules
+
+For the `proyectos` collection in the base project:
+
+```
+match /proyectos/{doc} {
+  allow read: if request.auth != null;
+  allow write: if false;
+}
+```
+
+For the reports collection in each congregation project:
+
+```
+match /informes/{doc} {
+  allow read, write: if request.auth != null;
+}
+```
+
+In both projects, **anonymous authentication** must be enabled.
+
+---
+
+## Screen structure
+
+```
+SetupScreen               ← Primera vez o al resetear. Tiene su propio Scaffold.
+    │
+    └── MainScaffold      ← Único Scaffold. Dueño de TopAppBar, NavigationBar y FAB.
+            ├── ReportsContent      (tab: Informes)
+            ├── ManageReportsContent (tab: Documentos)
+            └── SettingsContent     (tab: Ajustes)
+
+PdfViewerScreen           ← Pantalla completa. Tiene su propio Scaffold.
+```
+
+<Aside type="note">
+The three tab screens are pure content functions, without their own Scaffold. This avoids window inset duplication with `enableEdgeToEdge()`. All navigation elements (TopAppBar, NavigationBar, FAB, dialogs) live in `MainScaffold` inside `AppNavigation.kt`.
+</Aside>
+
+The animation between tabs is a directional horizontal slide: if the target tab has a higher index in the navigation bar, the content enters from the right; if lower, from the left. Duration: 280ms.
+
+---
+
+## Initial setup flow
+
+### By code
+
+<Steps>
+1. The user opens `SetupScreen` and enters the project code (up to 12 characters, normalized to uppercase).
+2. The app logs in anonymously to Firebase DEFAULT.
+3. The `proyectos` collection is queried looking for the document where `codigo == valorIngresado`.
+4. The document is mapped to a `ProjectConfig`, required fields are validated, and it is saved to DataStore.
+5. The named Firebase instance is initialized (or reinitialized) with the project data.
+6. The app navigates to `MainScaffold`.
+</Steps>
+
+### By JSON file
+
+<Steps>
+1. The user taps "Import config.json" and selects a file from the device storage (SAF — requires no permissions).
+2. The content is read as text and parsed with Gson to `ProjectConfig`.
+3. Required fields are validated: `projectName`, `apiKey`, `applicationId`, `projectId`, and `groups`.
+4. It is saved to DataStore and Firebase is initialized the same as the code flow.
+5. The app navigates to `MainScaffold`.
+</Steps>
+
+---
+
+## Data model: Report
+
+```kotlin
+@Immutable
+data class Informe(
+    val id: String,           // @DocumentId de Firestore
+    val nombre: String,
+    val grupo: String,        // valor crudo, ej. "1", "2", "Norte"
+    val mes: String,          // ej. "Abril"
+    val perfil: String,       // "Publicador" | "Precursor Auxiliar" | "Precursor Regular"
+    val predico: String,      // "Sí" | "No" — solo relevante para Publicadores
+    val horas: Any?,          // Double o Long (Firestore no garantiza el tipo)
+    val cursos: Any?,
+    val comentarios: String
+)
+```
+
+The `grupo` field stores the raw value from the config's `groups` list. The `displayGroup(group: String)` function decides how to display it: if numeric, it prepends "Group " (e.g. "1" → "Group 1"); if alphanumeric, it displays it as is.
+
+---
+
+## Loading and filtering reports
+
+`ReportsViewModel` loads the entire collection once on startup and applies filtering in memory.
+
+### Stale-while-revalidate pattern
+
+1. On startup, an attempt is made to load from `Source.CACHE` (local Firestore). If data exists, the UI displays it immediately without a spinner.
+2. Afterwards, a request is made to `Source.SERVER`. When it responds, it updates the UI in the background.
+3. If there is no connection and cache exists, no error is shown — cached data remains visible.
+4. If there is neither cache nor connection, an error is displayed with an option to retry.
+
+### Filtering
+
+The Group and Month filters live in `ReportsViewModel` as `MutableStateFlow`. The filtered result is derived with `combine` and exposed as `StateFlow<List<Informe>>`. The `generarPDF` function reads directly from `_allInformes` applying the filter on the fly, without relying on the derived StateFlow.
+
+---
+
+## PDF generation
+
+PDFs are generated with iText7 and saved in `getExternalFilesDir(DIRECTORY_DOCUMENTS)`.
+
+**File name:** `Informe_${mes}_${año}_${grupo}.pdf`  
+The file name is deterministic. Generating the same group and month in the same year overwrites the previous file.
+
+**Section order:** Publisher → Auxiliary Pioneer → Regular Pioneer
+
+All sections use uniform width columns (35 / 15 / 15 / 35%):
+
+| Column | Publisher | Pioneers |
+|---|---|---|
+| 1 (35%) | Name | Name |
+| 2 (15%) | Preached | Hours |
+| 3 (15%) | Studies | Studies |
+| 4 (35%) | Comments | Comments |
+
+At the end of each section, a totals row
