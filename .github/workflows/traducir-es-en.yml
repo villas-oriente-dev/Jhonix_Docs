@@ -26,21 +26,6 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          PROMPT="Eres traductor para documentación de Astro Starlight.
-          ESTRUCTURA:
-          - Origen: ./src/content/docs/ (ES)
-          - Destino: ./src/content/docs/en/ (EN)
-          - Mantener jerarquía exacta de carpetas y archivos.
-          - Carpetas como apps, informes-de-predicacion, territorios, villas-oriente SIN CAMBIOS.
-          REGLAS:
-          1. NO traducir: nombres de proyectos, rutas, slugs, códigos, comandos.
-          2. Nombres de archivos iguales: index.mdx → index.mdx.
-          3. Frontmatter: slug, date, tags, title INTACTOS.
-          4. Bloques de código entre ``` SIN CAMBIOS.
-          5. Enlaces: rutas sin traducir.
-          6. Solo traducir el texto visible.
-          Tono: claro, técnico, profesional."
-          
           ai-markdown-translator \
             -i ./src/content/docs \
             -o ./src/content/docs/en \
@@ -50,12 +35,12 @@ jobs:
             --preserve-structure \
             --code-blocks ignore \
             --frontmatter-keep slug,date,tags,category,hero,image,title \
-            --prompt "$PROMPT"
+            --prompt "Eres traductor para documentacion Astro Starlight. Solo traduce el contenido visible. Mantiene intactos: rutas, slugs, nombres de carpetas como apps informes-de-predicacion territorios villas-oriente, nombres de archivos, bloques de codigo, frontmatter y enlaces. Tono claro tecnico profesional."
 
-      - name: Subir archivos traducidos
+      - name: Subir cambios
         run: |
           git config --local user.email "bot@tudominio.com"
-          git config --local user.name "Traductor Automático"
+          git config --local user.name "Traductor Automatico"
           git add ./src/content/docs/en/
-          git commit -m "🤖 Traducción ES → EN" || echo "Sin cambios nuevos"
+          git commit -m "Traduccion ES → EN" || true
           git push
