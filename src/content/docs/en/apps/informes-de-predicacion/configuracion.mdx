@@ -1,13 +1,13 @@
 ---
 title: Configuration
-description: Guide for setting up the Preaching Reports system for a new congregation.
+description: Guide to setting up the Preaching Reports system for a new congregation.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 Complete guide to setting up the system from scratch for a new congregation.
-The system has three independent parts that share the same Firebase project:
-the web platform, the mobile application, and the database.
+The system consists of three independent parts that share the same Firebase project:
+the web platform, the mobile app, and the database.
 
 ---
 
@@ -16,11 +16,11 @@ the web platform, the mobile application, and the database.
 1. **Create the project in Firebase**
 
    Go to [firebase.google.com](https://firebase.google.com), create a new project,
-   and assign it a name that identifies the congregation.
+   and give it a name that identifies the congregation.
 
 2. **Enable Firestore**
 
-   In the Firebase panel, go to **Firestore Database → Create database**.
+   In the Firebase console, go to **Firestore Database → Create database**.
    Select production mode. The recommended region is `us-central1`.
 
 3. **Enable Authentication**
@@ -50,14 +50,14 @@ service cloud.firestore {
    select the project and go to **APIs & Services → Credentials**.
 
    Edit the project's API key and configure the restrictions:
-   - **Application restrictions → HTTP referrers** — add the web platform domain (e.g., `https://tu-sitio.netlify.app/*`).
-   - For the mobile app, this is managed within Firebase using the SHA-1 and SHA-256 of the app's keystore (see App section below).
+   - **Application restrictions → HTTP referrers (websites)** — add the web platform domain (e.g., `https://tu-sitio.netlify.app/*`).
+   - For the mobile app, it is managed from Firebase using the SHA-1 and SHA-256 of the app's keystore (see the App section below).
 
 ---
 
 ## Web platform
 
-The web platform is distributed as a ready-to-configure template.
+The web platform is distributed as a template ready to be configured.
 Repository: *(link pending)*
 
 1. **Download or clone the template**
@@ -67,7 +67,7 @@ Repository: *(link pending)*
 2. **Configure Firebase**
 
    Locate the `firebaseConfig` object and replace it with the data from the new project.
-   The data can be obtained from **Firebase → Project settings → Your apps**:
+   The data is obtained from **Firebase → Project settings → Your apps**:
 
 ```js
 const firebaseConfig = {
@@ -83,9 +83,9 @@ const firebaseConfig = {
 3. **Update the localStorage prefix**
 
    All `localStorage` and `sessionStorage` keys use a unique prefix per congregation
-   to prevent conflicts if a user accesses multiple instances from the same browser.
+   to prevent conflicts if the user accesses multiple instances from the same browser.
 
-   Search for all occurrences of the current prefix (e.g., `vdo_`) and replace them with a new one:
+   Find all occurrences of the current prefix (e.g., `vdo_`) and replace them with a new one:
 
 ```js
 // Antes
@@ -97,7 +97,7 @@ localStorage.getItem("abc_nombre");
 
 4. **Configure groups**
 
-   Update the group selector options with the congregation's groups:
+   Update the options in the group selector with the congregation's groups:
 
 ```html
 <option value="">Selecciona tu grupo</option>
@@ -107,7 +107,7 @@ localStorage.getItem("abc_nombre");
 
 5. **Update the congregation title and name**
 
-   Update the document's `<title>` and the visible header of the form
+   Update the document's `<title>` and the visible heading of the form
    with the name of the congregation.
 
 6. **Update the edit URL**
@@ -125,7 +125,7 @@ window.open(`https://TU-SITIO.netlify.app/edit/?doc=${docId}`);
 
 <Aside type="tip">
 Each congregation must have its own independent Firebase project.
-Sharing the same project among multiple congregations is not recommended.
+It is not recommended to share the same project across multiple congregations.
 </Aside>
 
 ### Additional pages (optional)
@@ -133,21 +133,21 @@ Sharing the same project among multiple congregations is not recommended.
 The template includes three pages. The previous steps cover the main form (`/`).
 The other two require additional changes:
 
-**`/answers/` — Report visualization**
+**`/answers/` — Viewing reports**
 
-This page allows the person in charge to filter and view received reports by group and month,
+This page allows the overseer to filter and view submitted reports by group and month,
 organized by profile. It also generates a direct link to edit each report.
 
-Required changes in addition to those already indicated:
+Required changes in addition to those already mentioned:
 
 - Update the group selector options (same list as in the main form).
-- Update the base URL used to generate the edit links. Look for this line:
+- Update the base URL used to generate edit links. Look for this line:
 
 ```js
 const url = `https://informe-de-predicacion.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
 ```
 
-And replace the domain with the new site's domain:
+And replace the domain with that of the new site:
 
 ```js
 const url = `https://TU-SITIO.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
@@ -155,23 +155,81 @@ const url = `https://TU-SITIO.netlify.app/edit/?doc=${encodeURIComponent(id)}`;
 
 **`/edit/` — Edit report**
 
-This page loads an existing report from Firestore using the URL parameter `?doc=`,
-allows correcting its fields, and saves the changes with `updateDoc`.
+This page loads an existing report from Firestore using the `?doc=` URL parameter,
+allows editing its fields, and saves the changes with `updateDoc`.
 
 Upon loading, the group and month are locked (non-editable) to prevent a report
-from being accidentally moved to another period or group.
+from accidentally being moved to another period or group.
 
 It can be accessed in two ways:
 - From `/answers/`, by copying the edit link from a card.
 - From the main form, when a resubmission is detected and the publisher chooses to edit.
 
-Required changes in addition to those already indicated:
+Required changes in addition to those already mentioned:
 - Update the group selector options.
-- Update the `localStorage` prefix (same `{prefijo}_grupo` and `{prefijo}_nombre` key).
-- Update the Firebase configuration (Same as in *Web platform → Configure Firebase*)
+- Update the `localStorage` prefix (same `{prefix}_grupo` and `{prefix}_nombre` key).
+- Update the Firebase configuration (Same as in *Web Platform → Configure Firebase*)
 
 ---
 
 ## Mobile application
 
-*(Documentation pending. Will be completed along with the mobile app documentation.)*
+The app connects to the same congregation Firebase project used by the web platform.
+The configuration is loaded in two ways: by entering a **project code** or by importing a **JSON file**.
+Both options produce the same result in the app.
+
+### App registration in Firebase
+
+Before distributing the signed APK, register the digital signature in the congregation's Firebase project.
+In **Firebase Console → Project settings → Your apps → Android app**, add the SHA-1 and SHA-256 fingerprints
+from the keystore used to sign the APK. Without this step, the project's API key will reject requests from the app.
+
+<Aside type="note">
+The app uses anonymous authentication, just like the web platform. It does not require Email/Password.
+Verify that the **Anonymous** provider is enabled in the congregation's Firebase project.
+</Aside>
+
+### Configuration file structure (config.json)
+
+If the user does not have a code, they can import a JSON file directly from the app.
+The file must have exactly this structure:
+
+```json
+{
+  "projectName": "Nombre de la Congregación",
+  "firebaseConfig": {
+    "apiKey": "AIzaSy...",
+    "applicationId": "1:000000000000:android:0000000000000000",
+    "projectId": "id-del-proyecto-firebase"
+  },
+  "collectionName": "informes",
+  "editBaseUrl": "https://sitio-congregacion.netlify.app/edit/?doc=",
+  "groups": ["1", "2", "3", "4", "5", "6", "7"]
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `projectName` | Yes | Name visible in the app's TopBar |
+| `firebaseConfig.apiKey` | Yes | API key of the congregation's Firebase project |
+| `firebaseConfig.applicationId` | Yes | App ID in `1:xxx:android:xxx` format. Found in `google-services.json` as `mobilesdk_app_id` |
+| `firebaseConfig.projectId` | Yes | Project ID of the Firebase project |
+| `collectionName` | Yes | Name of the Firestore collection where reports reside |
+| `editBaseUrl` | No | Base URL for the web edit link. Leave as an empty string `""` if not applicable |
+| `groups` | Yes | List of groups. Numeric values are displayed as "Group N" in the UI. Text values are displayed as-is |
+
+<Aside type="tip">
+The `apiKey`, `applicationId`, and `projectId` values are obtained from
+**Firebase Console → Project settings → Your apps → Android app → google-services.json**.
+</Aside>
+
+### Project code
+
+The code is the alternative to the JSON file for the end user. It contains the same data
+but stored in the database of the app's base project (not in the congregation's Firebase).
+The user simply enters the code of up to 12 characters on the initial screen.
+
+To generate a project code, use the tool integrated into this documentation:
+[Code Generator](/apps/informes-de-predicacion/generador-codigo).
+
+Once generated, the code works for any device without needing to distribute files.
