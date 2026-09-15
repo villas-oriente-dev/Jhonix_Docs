@@ -174,4 +174,62 @@ Cambios necesarios además de los ya indicados:
 
 ## Aplicación móvil
 
-*(Documentación pendiente. Se completará junto con la documentación de la app móvil.)*
+La app se conecta al mismo proyecto de Firebase de la congregación que usa la plataforma web.
+La configuración se carga de dos formas: ingresando un **código de proyecto** o importando un **archivo JSON**.
+Ambas opciones producen el mismo resultado en la app.
+
+### Registro de la app en Firebase
+
+Antes de distribuir el APK firmado, registra la firma digital en el proyecto Firebase de la congregación.
+En **Firebase Console → Configuración del proyecto → Tus apps → App Android**, agrega los fingerprints SHA-1 y SHA-256
+del keystore con el que firmas el APK. Sin este paso, la API key del proyecto rechazará las peticiones de la app.
+
+<Aside type="note">
+La app usa autenticación anónima, igual que la plataforma web. No requiere Email/Contraseña.
+Verifica que el proveedor **Anónimo** esté habilitado en el proyecto Firebase de la congregación.
+</Aside>
+
+### Estructura del archivo de configuración (config.json)
+
+Si el usuario no tiene código, puede importar un archivo JSON directamente desde la app.
+El archivo debe tener exactamente esta estructura:
+
+```json
+{
+  "projectName": "Nombre de la Congregación",
+  "firebaseConfig": {
+    "apiKey": "AIzaSy...",
+    "applicationId": "1:000000000000:android:0000000000000000",
+    "projectId": "id-del-proyecto-firebase"
+  },
+  "collectionName": "informes",
+  "editBaseUrl": "https://sitio-congregacion.netlify.app/edit/?doc=",
+  "groups": ["1", "2", "3", "4", "5", "6", "7"]
+}
+```
+
+| Campo | Requerido | Descripción |
+|---|---|---|
+| `projectName` | Sí | Nombre visible en la TopBar de la app |
+| `firebaseConfig.apiKey` | Sí | API Key del proyecto Firebase de la congregación |
+| `firebaseConfig.applicationId` | Sí | App ID en formato `1:xxx:android:xxx`. Se encuentra en `google-services.json` como `mobilesdk_app_id` |
+| `firebaseConfig.projectId` | Sí | Project ID del proyecto Firebase |
+| `collectionName` | Sí | Nombre de la colección Firestore donde viven los informes |
+| `editBaseUrl` | No | URL base para el enlace de edición web. Dejar como cadena vacía `""` si no aplica |
+| `groups` | Sí | Lista de grupos. Valores numéricos se muestran como "Grupo N" en la UI. Valores de texto se muestran tal cual |
+
+<Aside type="tip">
+Los valores de `apiKey`, `applicationId` y `projectId` se obtienen desde
+**Firebase Console → Configuración del proyecto → Tus apps → App Android → google-services.json**.
+</Aside>
+
+### Código de proyecto
+
+El código es la alternativa al archivo JSON para el usuario final. Contiene los mismos datos
+pero almacenados en la base de datos del proyecto base de la app (no en el Firebase de la congregación).
+El usuario solo ingresa el código de hasta 12 caracteres en la pantalla inicial.
+
+Para generar un código de proyecto usa la herramienta integrada en esta documentación:
+[Generador de código](/apps/informes-de-predicacion/generador-codigo).
+
+Una vez generado, el código funciona para cualquier dispositivo sin necesidad de distribuir archivos.

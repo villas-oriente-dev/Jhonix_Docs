@@ -1,0 +1,330 @@
+---
+title: Generador de código de configuración
+description: Herramienta para registrar una nueva congregación y generar el código que los usuarios ingresan en la app.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Crea el código de proyecto que el usuario ingresa en la primera pantalla de la app.
+Al guardar, los datos quedan registrados en la base de datos del proyecto base de la app.
+El usuario solo necesita el código: no recibe ni maneja credenciales de Firebase.
+
+<Aside type="caution">
+Esta herramienta escribe directamente en la base de datos. Verifica los datos antes de guardar.
+Un código ya publicado puede ser usado por cualquier persona que lo conozca.
+</Aside>
+
+---
+
+<div id="generador">
+
+<div class="gen-section">
+  <div class="gen-field">
+    <label for="g-nombre">Nombre de la congregación</label>
+    <input id="g-nombre" type="text" placeholder="Ej. Villas de Oriente" />
+  </div>
+
+  <div class="gen-field gen-field--code">
+    <label for="g-codigo">Código</label>
+    <div class="gen-code-row">
+      <input id="g-codigo" type="text" maxlength="12" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:0.15em;font-weight:700;" />
+      <button type="button" id="btn-generar">Generar</button>
+    </div>
+    <span class="gen-hint">Hasta 12 caracteres. El usuario lo ingresa en la app para conectarse.</span>
+  </div>
+</div>
+
+<div class="gen-section">
+  <h3 class="gen-section-title">Firebase de la congregación</h3>
+
+  <div class="gen-field">
+    <label for="g-apikey">API Key</label>
+    <input id="g-apikey" type="text" placeholder="AIzaSy..." />
+  </div>
+
+  <div class="gen-field">
+    <label for="g-appid">Application ID</label>
+    <input id="g-appid" type="text" placeholder="1:000000000000:android:0000000000000000" />
+    <span class="gen-hint">Valor <code>mobilesdk_app_id</code> del google-services.json de la congregación</span>
+  </div>
+
+  <div class="gen-field">
+    <label for="g-projectid">Project ID</label>
+    <input id="g-projectid" type="text" placeholder="mi-proyecto-firebase" />
+  </div>
+</div>
+
+<div class="gen-section">
+  <h3 class="gen-section-title">Configuración de la app</h3>
+
+  <div class="gen-field">
+    <label for="g-coleccion">Colección de Firestore</label>
+    <input id="g-coleccion" type="text" placeholder="informes" value="informes" />
+  </div>
+
+  <div class="gen-field">
+    <label for="g-editurl">URL de edición web</label>
+    <input id="g-editurl" type="text" placeholder="https://sitio.netlify.app/edit/?doc=" />
+    <span class="gen-hint">Dejar vacío si no aplica</span>
+  </div>
+
+  <div class="gen-field">
+    <label for="g-grupos">Grupos</label>
+    <input id="g-grupos" type="text" placeholder="1, 2, 3, 4, 5, 6, 7" />
+    <span class="gen-hint">Separados por coma. Valores numéricos se muestran como "Grupo N" en la app</span>
+  </div>
+</div>
+
+<div class="gen-actions">
+  <button type="button" id="btn-preview">Vista previa JSON</button>
+  <button type="button" id="btn-guardar" class="gen-primary">Guardar en Firebase</button>
+</div>
+
+<pre id="gen-preview" style="display:none;"></pre>
+
+<div id="gen-status"></div>
+
+</div>
+
+<style>{`
+  #generador {
+    margin-top: 1.5rem;
+  }
+  .gen-section {
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 8px;
+    padding: 1.25rem 1.25rem 0.5rem;
+    margin-bottom: 1.25rem;
+    background: var(--sl-color-bg-sidebar);
+  }
+  .gen-section-title {
+    margin: 0 0 1rem 0;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--sl-color-text-accent);
+    font-weight: 700;
+  }
+  .gen-field {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .gen-field label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sl-color-text);
+  }
+  .gen-field input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 6px;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .gen-field input:focus {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 1px;
+    border-color: var(--sl-color-accent);
+  }
+  .gen-hint {
+    font-size: 0.78rem;
+    color: var(--sl-color-text-accent);
+  }
+  .gen-code-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .gen-code-row input {
+    flex: 1;
+    font-family: var(--sl-font-mono, monospace);
+  }
+  .gen-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .gen-actions button {
+    padding: 0.55rem 1.25rem;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline);
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .gen-actions button.gen-primary {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-accent);
+    font-weight: 600;
+  }
+  .gen-actions button:hover { opacity: 0.85; }
+  .gen-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #gen-preview {
+    padding: 1rem;
+    background: var(--sl-color-bg-sidebar);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+  }
+  #gen-status {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    display: none;
+  }
+  #gen-status.success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+    display: block;
+  }
+  #gen-status.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+    display: block;
+  }
+  #btn-generar {
+    padding: 0.5rem 0.85rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 6px;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    font-size: 0.85rem;
+  }
+  #btn-generar:hover { opacity: 0.85; }
+`}</style>
+
+<script type="module">{`
+  // ─── Configuración de Firebase del proyecto base de la app ────────────────
+  // Reemplaza estos valores con los del proyecto Firebase de Informes de Predicación
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyBGtfasTpBWfO6fckcuUkOb_3wpl0EiJeY",
+    authDomain:        "informes-predicacion.firebaseapp.com",
+    projectId:         "informes-predicacion",
+    storageBucket:     "informes-predicacion.firebasestorage.app",
+    messagingSenderId: "631448576676",
+    appId:             "1:631448576676:web:4663c2cdde156363e97c31"
+  };
+  const COLLECTION = "proyectos";
+  // ─────────────────────────────────────────────────────────────────────────
+
+  import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+  import { getFirestore, doc, setDoc, query, collection, where, getDocs }
+    from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+  import { getAuth, signInAnonymously }
+    from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+
+  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  // ── Utilidades ────────────────────────────────────────────────────────────
+
+  function generarCodigo() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  }
+
+  function leerFormulario() {
+    return {
+      codigo:        document.getElementById('g-codigo').value.trim().toUpperCase(),
+      projectName:   document.getElementById('g-nombre').value.trim(),
+      collectionName: document.getElementById('g-coleccion').value.trim() || 'informes',
+      editBaseUrl:   document.getElementById('g-editurl').value.trim(),
+      groups:        document.getElementById('g-grupos').value
+                       .split(',').map(g => g.trim()).filter(Boolean),
+      firebaseConfig: {
+        apiKey:        document.getElementById('g-apikey').value.trim(),
+        applicationId: document.getElementById('g-appid').value.trim(),
+        projectId:     document.getElementById('g-projectid').value.trim()
+      }
+    };
+  }
+
+  function validar(datos) {
+    const errs = [];
+    if (!datos.codigo)                        errs.push('El código es requerido');
+    if (!datos.projectName)                   errs.push('El nombre del proyecto es requerido');
+    if (!datos.firebaseConfig.apiKey)         errs.push('La API Key es requerida');
+    if (!datos.firebaseConfig.applicationId)  errs.push('El Application ID es requerido');
+    if (!datos.firebaseConfig.projectId)      errs.push('El Project ID es requerido');
+    if (datos.groups.length === 0)            errs.push('Agrega al menos un grupo');
+    return errs;
+  }
+
+  function setStatus(msg, tipo) {
+    const el = document.getElementById('gen-status');
+    el.textContent = msg;
+    el.className = tipo;
+  }
+
+  // ── Eventos ───────────────────────────────────────────────────────────────
+
+  document.getElementById('btn-generar').addEventListener('click', () => {
+    document.getElementById('g-codigo').value = generarCodigo();
+  });
+
+  document.getElementById('btn-preview').addEventListener('click', () => {
+    const datos = leerFormulario();
+    const pre = document.getElementById('gen-preview');
+    pre.style.display = 'block';
+    pre.textContent = JSON.stringify(datos, null, 2);
+  });
+
+  document.getElementById('btn-guardar').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-guardar');
+    const datos = leerFormulario();
+
+    const errores = validar(datos);
+    if (errores.length > 0) {
+      setStatus(errores.join(' · '), 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    setStatus('', '');
+
+    try {
+      await signInAnonymously(auth);
+
+      // Verificar si el código ya existe
+      const q = query(collection(db, COLLECTION), where('codigo', '==', datos.codigo));
+      const existe = await getDocs(q);
+      if (!existe.empty) {
+        setStatus(\`El código "\${datos.codigo}" ya existe. Genera uno diferente o edita el existente.\`, 'error');
+        return;
+      }
+
+      // Guardar el documento usando el código como ID para fácil referencia
+      await setDoc(doc(db, COLLECTION, datos.codigo), datos);
+
+      setStatus(\`Código "\${datos.codigo}" guardado correctamente para "\${datos.projectName}".\`, 'success');
+      document.getElementById('gen-preview').style.display = 'none';
+    } catch (err) {
+      setStatus(\`Error: \${err.message}\`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Guardar en Firebase';
+    }
+  });
+
+  // Generar código al cargar la página
+  document.getElementById('g-codigo').value = generarCodigo();
+  document.getElementById('g-coleccion').value = 'informes';
+`}</script>
