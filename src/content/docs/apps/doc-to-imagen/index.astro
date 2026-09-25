@@ -1,0 +1,102 @@
+---
+title: DocToImagen — App
+description: Aplicación Android para convertir documentos PDF en imágenes de alta calidad (150, 300 y 600 DPI).
+---
+
+import { Card, CardGrid, Steps, Aside } from '@astrojs/starlight/components';
+
+## Descripción general
+
+DocToImagen es una aplicación Android ligera y eficiente diseñada para convertir archivos PDF y documentos imprimibles en imágenes de alta resolución. La aplicación permite ajustar la densidad de píxeles por pulgada (DPI) y seleccionar el formato de salida deseado, procesando cada página del documento de manera independiente.
+
+## Características principales
+
+<CardGrid>
+  <Card title="Integración al compartir" icon="rocket">
+    Permite enviar documentos PDF directamente desde cualquier aplicación externa (como WhatsApp, correo electrónico o exploradores de archivos) mediante la función nativa de compartir de Android.
+  </Card>
+  <Card title="Servicio de impresión integrado" icon="laptop">
+    Registra un servicio de impresión del sistema denominado DocToImagen Printer, habilitando la conversión a imágenes desde cualquier app que admita la acción de imprimir.
+  </Card>
+  <Card title="Selector de archivos nativo" icon="document">
+    Incluye un botón directo para explorar e importar archivos PDF guardados en el almacenamiento local o en la nube del dispositivo.
+  </Card>
+  <Card title="Configuración de calidad" icon="setting">
+    Soporta resoluciones de 150 DPI (estándar), 300 DPI (alta calidad, valor por defecto) y 600 DPI (máxima nitidez), con formatos de salida PNG sin pérdida y JPEG con compresión al 95%.
+  </Card>
+  <Card title="Historial local de conversiones" icon="list-format">
+    Almacena un registro local de los documentos procesados con acceso a una vista previa de las imágenes generadas y la opción de gestionar el historial.
+  </Card>
+</CardGrid>
+
+## Métodos de uso
+
+### Método 1: Compartir un archivo desde otra aplicación
+
+<Steps>
+1. Abre el archivo PDF en WhatsApp, correo electrónico o explorador de archivos.
+2. Selecciona la opción Compartir en el menú contextual o de la aplicación.
+3. Selecciona DocToImagen dentro del selector de aplicaciones de Android.
+4. Confirma la conversión para procesar las páginas y guardarlas como imágenes.
+</Steps>
+
+### Método 2: Convertir mediante el servicio de impresión
+
+<Steps>
+1. Abre el documento o página web que deseas convertir en tu visor o navegador habitual.
+2. Accede al menú de opciones y selecciona Imprimir.
+3. Elige la impresora llamada DocToImagen Printer en la lista de impresoras disponibles.
+4. Ajusta las opciones de impresión (como tamaño de página o resolución) y presiona el botón de imprimir.
+5. El proceso se ejecutará en segundo plano y se mostrará una notificación al finalizar.
+</Steps>
+
+<Aside type="note">
+  Asegúrate de que el servicio de impresión DocToImagen Printer se encuentre activado en los ajustes del sistema Android para visualizar la impresora en el menú de impresión.
+</Aside>
+
+### Método 3: Seleccionar un archivo desde la aplicación
+
+<Steps>
+1. Abre la aplicación DocToImagen.
+2. Presiona el botón Seleccionar archivo ubicado en la pantalla principal.
+3. Elige el archivo PDF dentro del almacenamiento del dispositivo mediante el selector nativo.
+4. La aplicación iniciará automáticamente el procesamiento mostrando una barra de progreso.
+</Steps>
+
+## Lógica de almacenamiento y nombres de archivos
+
+Las imágenes generadas se guardan directamente en el almacenamiento público del dispositivo dentro del directorio dedicado:
+
+- Ruta de destino: `Pictures/DocToImage/`
+
+### Patrón de nombres de archivo
+
+Cada página convertida se nombra siguiendo una convención estricta:
+
+`[nombre_documento]─#[contador].[ext]`
+
+Por ejemplo, para un documento denominado "Contrato", los archivos resultantes serán `Contrato─#1.png`, `Contrato─#2.png`, etc.
+
+### Control incremental de archivos
+
+La aplicación implementa un sistema automatizado que consulta `MediaStore` y el directorio físico antes de guardar cada archivo. Si ya existen imágenes previas con el mismo nombre base, calcula el contador máximo existente e incrementa su valor automáticamente. Esto garantiza que ningún archivo previo sea sobrescrito accidentalmente.
+
+## Tecnologías usadas
+
+- **Kotlin:** Lenguaje de programación principal de la aplicación.
+- **Jetpack Compose y Material 3:** Construcción de la interfaz de usuario moderna y reactiva.
+- **Android PrintService API:** Creación del servicio de impresión virtual para capturar documentos desde cualquier app.
+- **Android PdfRenderer:** Renderización nativa y rápida de páginas PDF a mapas de bits (Bitmap) en alta resolución.
+- **Room Database:** Persistencia de datos local para el historial de documentos convertidos.
+
+## Estado actual
+
+- **Estado:** Terminada
+- **Versión:** 1.0
+
+## Código fuente y generación
+
+El código fuente de esta aplicación se encuentra alojado en GitHub.
+
+- **Repositorio:** Privado
+- **Generación:** La aplicación fue desarrollada con la asistencia de Google AI Studio.
